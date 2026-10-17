@@ -30,17 +30,15 @@ def test_vision():
         print(f"[PASS] Frame captured: {frame.shape}")
         
         print("\n[TEST] Detecting all objects...")
-        objects = vision.detect_all_objects(frame)
+        bottles = vision.detect_bottles(frame)
+        env = vision.detect_environment(frame)
         
-        print(f"[INFO] Detected objects:")
-        for key, obj in objects.items():
-            if key == 'black_obstacles':
-                print(f"  - {key}: {len(obj)} obstacles")
-            else:
-                print(f"  - {key}: area={obj['area']:.0f}, dist={obj['distance_est']:.1f}cm")
+        print(f"[INFO] Detected {len(bottles)} bottles")
+        print(f"[INFO] Floor color: {env['floor']}")
+        print(f"[INFO] Detected {len(env['obstacles'])} obstacles and {len(env['pots'])} pots")
         
         print("\n[TEST] Visualization...")
-        vision.visualize(frame, objects)
+        vision.draw_debug(frame, bottles, env)
         
         print("\n[PASS] Vision system test successful!")
         print("Press any key in image window to continue...")
