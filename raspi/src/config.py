@@ -9,7 +9,7 @@ untuk kondisi lighting spesifik di area testing Anda.
 import os
 
 # ===== SERIAL COMMUNICATION =====
-SERIAL_PORT = "/dev/ttyUSB0"  # ESP32 USB connection
+SERIAL_PORT = "/dev/ttyUSB1"  # ESP32 USB connection
 SERIAL_BAUD = 115200
 SERIAL_TIMEOUT = 0.1
 
@@ -145,7 +145,7 @@ APPROACH_TIMEOUT = 15.0         # seconds for final approach
 SEARCH_ROTATION_SPEED = 60      # Slow rotation when searching
 SEARCH_ROTATION_STEP = 0.5      # seconds per rotation step
 
-# ===== LIDAR CONFIGURATION =====
+# ===== LiDAR CONFIGURATION =====
 LIDAR_PORT = "/dev/ttyUSB0"     # Update ke port yang terdeteksi
 LIDAR_BAUD = 115200             # YDLIDAR YDS2MD-1 default baud
 LIDAR_TIMEOUT = 1.0
