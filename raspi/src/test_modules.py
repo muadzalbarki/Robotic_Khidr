@@ -65,14 +65,13 @@ def test_lidar():
     try:
         from lidar_nav import create_lidar
         
-        print("\n[QUESTION] Use LiDAR simulator? (y/n): ", end='')
-        use_sim = input().lower().startswith('y')
-        
-        lidar = create_lidar(use_simulator=use_sim)
+        print("\n[TEST] Initializing LiDAR...")
+        lidar = create_lidar()
         
         if not lidar.connected:
             print("[FAIL] LiDAR not connected")
             return False
+
         
         print("[PASS] LiDAR connected")
         
