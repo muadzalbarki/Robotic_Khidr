@@ -13,6 +13,7 @@ import struct
 import time
 import math
 import numpy as np
+import serial
 from config import *
 
 
@@ -378,33 +379,24 @@ class LidarSimulator:
 
 
 # Factory function
-def create_lidar(use_simulator=False):
+def create_lidar():
     """
-    Create LiDAR instance (real or simulator)
-    
-    Args:
-        use_simulator: If True, use simulator instead of hardware
+    Create LiDAR instance
     
     Returns:
-        LidarNavigator or LidarSimulator instance
+        LidarNavigator instance
     """
-    if use_simulator:
-        return LidarSimulator()
-    else:
-        return LidarNavigator()
+    return LidarNavigator()
 
 
 # Test function
 if __name__ == "__main__":
     print("=== LiDAR Navigation Test ===\n")
-    print("Use simulator? (y/n): ", end='')
     
-    use_sim = input().lower().startswith('y')
-    
-    lidar = create_lidar(use_simulator=use_sim)
+    lidar = create_lidar()
     
     if not lidar.connected:
-        print("Failed to connect to LiDAR")
+        print("Sambungkan lidar, lidar belum terhubung")
         exit(1)
     
     try:
