@@ -137,13 +137,82 @@ class VisionSystem:
             
         return detected_bottles
 
-    def draw_debug(self, frame: np.ndarray, detections: list[dict], window_name=VIS_WINDOW_NAME):
-        """Draw bounding boxes, center points, and color labels for debugging"""
+    def detect_environment(self, frame: np.ndarray):
+        """
+        Detect floor color, obstacles, and pots using HSV.
+        """
+        results = {
+            "floor": None,
+            "obstacles": [],
+            "pots": []
+        }
+        
+        # Crop area for floor detection
+        y_min, y_max = FLOOR_DETECTION_ZONE["y_min"], FLOOR_DETECTION_ZONE["y_max"]
+        floor_roi = frame[y_min:y_max, :]
+        hsv_floor = cv2.cvtColor(floor_roi, cv2.COLOR_RGB2HSV)
+        
+        # 1. Detect Floor
+        max_area = 0
+        for color in ['red', 'yellow', 'green', 'blue']:
+            key = f"{color}_floor"
+            if key in COLOR_RANGES:
+                mask = cv2.inRange(hsv_floor, np.array(COLOR_RANGES[key][0]), np.array(COLOR_RANGES[key][1]))
+                if color == 'red' and 'red_floor_wrap' in COLOR_RANGES:
+                    mask = cv2.bitwise_or(mask, cv2.inRange(hsv_floor, np.array(COLOR_RANGES['red_floor_wrap'][0]), np.array(COLOR_RANGES['red_floor_wrap'][1])))
+                area = cv2.countNonZero(mask)
+                if area > FLOOR_ZONE_MIN_AREA and area > max_area:
+                    max_area = area
+                    results["floor"] = color
+
+        # 2. Detect Obstacles & Pots
+        hsv_full = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        
+        # Black obstacles
+        obs_mask = cv2.inRange(hsv_full, np.array(COLOR_RANGES["obstacle_black"][0]), np.array(COLOR_RANGES["obstacle_black"][1]))
+        contours, _ = cv2.findContours(obs_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            if cv2.contourArea(cnt) > OBSTACLE_MIN_AREA:
+                results["obstacles"].append(cv2.boundingRect(cnt))
+        
+        # White pots
+        pot_mask = cv2.inRange(hsv_full, np.array(COLOR_RANGES["pot_white"][0]), np.array(COLOR_RANGES["pot_white"][1]))
+        contours, _ = cv2.findContours(pot_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            if cv2.contourArea(cnt) > POT_MIN_AREA:
+                results["pots"].append(cv2.boundingRect(cnt))
+                
+        return results
+
+    def draw_debug(self, frame: np.ndarray, detections: dict, env_data: dict, window_name=VIS_WINDOW_NAME):
+        """Draw all detections for debugging"""
         if not ENABLE_VISUALIZATION:
             return
             
         vis_frame = frame.copy()
         
+        # Draw Floor Text
+        if env_data["floor"]:
+            cv2.putText(vis_frame, f"Floor: {env_data['floor']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+        # Draw Obstacles
+        for (x, y, w, h) in env_data["obstacles"]:
+            cv2.rectangle(vis_frame, (x, y), (x+w, y+h), (0, 0, 0), 2)
+            cv2.putText(vis_frame, "Obs", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+            
+        # Draw Pots
+        for (x, y, w, h) in env_data["pots"]:
+            cv2.rectangle(vis_frame, (x, y), (x+w, y+h), (255, 255, 255), 2)
+            cv2.putText(vis_frame, "Pot", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+
+        # Existing bottle drawing...
+        # [REUSED existing logic for bottles...]
+        self._draw_bottles(vis_frame, detections)
+        
+        cv2.imshow(window_name, vis_frame)
+        cv2.waitKey(1)
+
+    def _draw_bottles(self, frame, detections):
         color_map = {
             'red': (0, 0, 255),
             'yellow': (0, 255, 255),
@@ -151,25 +220,17 @@ class VisionSystem:
             'blue': (255, 0, 0),
             'unknown': (128, 128, 128)
         }
-        
         for det in detections:
             x1, y1, x2, y2 = det['bbox']
             color_name = det['color']
             bgr_color = color_map.get(color_name, (255, 255, 255))
-            
-            # Draw Bounding Box
-            cv2.rectangle(vis_frame, (x1, y1), (x2, y2), bgr_color, 2)
-            
-            # Draw Center
-            cv2.circle(vis_frame, det['center'], 5, bgr_color, -1)
-            
-            # Draw Label
+            cv2.rectangle(frame, (x1, y1), (x2, y2), bgr_color, 2)
+            cv2.circle(frame, det['center'], 5, bgr_color, -1)
             label = f"{color_name} bottle"
-            cv2.putText(vis_frame, label, (x1, max(20, y1 - 10)),
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, bgr_color, 2)
-                       
-        cv2.imshow(window_name, vis_frame)
-        cv2.waitKey(1)
+            cv2.putText(frame, label, (x1, max(20, y1 - 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, bgr_color, 2)
+
+
 
     def close(self):
         """Cleanup camera and windows"""
