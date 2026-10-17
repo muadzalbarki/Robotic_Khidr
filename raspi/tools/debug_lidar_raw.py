@@ -1,7 +1,6 @@
 import serial
 import time
 
-# Konfigurasi disesuaikan dengan kebutuhan Anda
 PORT = "/dev/ttyUSB0"
 BAUD = 115200
 
@@ -9,13 +8,16 @@ def debug_lidar():
     print(f"Membuka serial pada {PORT} dengan baudrate {BAUD}...")
     try:
         ser = serial.Serial(PORT, BAUD, timeout=1)
-        print("Berhasil terbuka. Menunggu data mentah (Hex)...")
-        print("Tekan Ctrl+C untuk berhenti.")
+        print("Berhasil terbuka.")
+        
+        # Kirim perintah start (A5 60)
+        ser.write(bytes([0xA5, 0x60]))
+        print("Perintah start (A5 60) terkirim.")
+        print("Menunggu data mentah (Hex)... Tekan Ctrl+C untuk berhenti.")
         
         while True:
             if ser.in_waiting > 0:
                 data = ser.read(ser.in_waiting)
-                # Menampilkan data dalam format hex
                 print(data.hex(' '), end=' ')
             time.sleep(0.1)
     except KeyboardInterrupt:
