@@ -63,6 +63,11 @@ FLOOR_ZONE_MIN_AREA = 2000      # Watering zone floors
 POT_MIN_AREA = 3000             # Pot (large object)
 OBSTACLE_MIN_AREA = 500         # Black obstacles
 
+# YOLO26n Configuration
+YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "yolo26n.pt")
+YOLO_CONFIDENCE_THRESHOLD = 0.60
+YOLO_BOTTLE_CLASS_ID = 39       # COCO class ID for bottle
+
 # Pot-specific detection
 POT_MIN_CIRCULARITY = 0.6       # Circle detection threshold (0-1)
 POT_SEARCH_ZONE_WIDTH = 200     # Pixels, width area scan beside pot
