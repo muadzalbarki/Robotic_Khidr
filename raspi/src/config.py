@@ -141,7 +141,7 @@ SEARCH_ROTATION_SPEED = 60      # Slow rotation when searching
 SEARCH_ROTATION_STEP = 0.5      # seconds per rotation step
 
 # ===== LIDAR CONFIGURATION =====
-LIDAR_PORT = "/dev/ttyUSB1"     # Bisa juga /dev/ttyACM0
+LIDAR_PORT = "/dev/ttyUSB0"     # Update ke port yang terdeteksi
 LIDAR_BAUD = 115200             # YDLIDAR YDS2MD-1 default baud
 LIDAR_TIMEOUT = 1.0
 
