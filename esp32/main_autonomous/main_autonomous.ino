@@ -54,7 +54,7 @@ const int GRIP_MAX = 90;
 
 // ================= SERIAL COMMUNICATION =================
 const unsigned long SERIAL_BAUD = 115200;
-const unsigned long WATCHDOG_TIMEOUT = 500;  // ms
+const unsigned long WATCHDOG_TIMEOUT = 1000;  // ms - increased for safety
 unsigned long lastCommandTime = 0;
 bool isMoving = false;
 
@@ -63,9 +63,9 @@ String serialBuffer = "";
 // ================= FUNGSI MOTOR =================
 void setMotor(int index, int speed) {
   if (index < 0 || index >= numDrivers) return;
-  
+
   speed = constrain(speed, -255, 255);
-  
+
   if (speed == 0) {
     ledcWrite(rpwmPins[index], 0);
     ledcWrite(lpwmPins[index], 0);
@@ -150,6 +150,7 @@ void setup() {
   Serial.println("Waiting for commands from Raspberry Pi...\n");
   
   for (int i = 0; i < numDrivers; i++) {
+    // ESP32 Arduino Core 3.x API for PWM
     ledcAttach(rpwmPins[i], pwmFreq, pwmResolution);
     ledcAttach(lpwmPins[i], pwmFreq, pwmResolution);
     ledcWrite(rpwmPins[i], 0);
@@ -191,4 +192,6 @@ void loop() {
     stopMotors();
     Serial.println("WARN:WATCHDOG_STOP");
   }
+  
+  delay(1);  // small delay for stability
 }
