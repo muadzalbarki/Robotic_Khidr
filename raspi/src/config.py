@@ -30,28 +30,27 @@ FRAME_CENTER_Y = FRAME_HEIGHT // 2
 COLOR_RANGES = {
     # Navigation Targets (50x50cm colored papers)
     "home_base": ([140, 50, 150], [170, 255, 255]),      # Pink/Magenta paper
-    "water_station": ([100, 100, 50], [130, 255, 150]),  # Dark Blue paper
+    "water_station": ([115, 100, 50], [135, 255, 150]),  # Dark Blue/Violet paper
     
     # Bottles (small objects)
     "red_bottle": ([0, 120, 70], [10, 255, 255]),
-    "red_bottle_wrap": ([170, 120, 70], [180, 255, 255]),  # Hue wraparound for red
-    "yellow_bottle": ([20, 100, 100], [30, 255, 255]),
-    "green_bottle": ([40, 50, 50], [80, 255, 255]),
+    "red_bottle_wrap": ([170, 120, 70], [179, 255, 255]),  # Hue wraparound for red (max 179)
+    "yellow_bottle": ([20, 100, 100], [35, 255, 255]),
+    "green_bottle": ([45, 50, 50], [80, 255, 255]),
     "blue_bottle": ([90, 80, 80], [110, 255, 255]),
     
-    # Watering Zone Floors (50x50cm colored papers, same colors as bottles)
-    # Slightly relaxed ranges untuk accommodate lighting variations di lantai
+    # Watering Zone Floors (50x50cm colored papers)
     "red_floor": ([0, 80, 50], [10, 255, 200]),
-    "red_floor_wrap": ([170, 80, 50], [180, 255, 200]),
-    "yellow_floor": ([20, 80, 80], [30, 255, 200]),
-    "green_floor": ([40, 40, 40], [80, 255, 200]),
+    "red_floor_wrap": ([170, 80, 50], [179, 255, 200]), # Fix 179
+    "yellow_floor": ([20, 80, 80], [35, 255, 200]),
+    "green_floor": ([45, 40, 40], [80, 255, 200]),
     "blue_floor": ([90, 60, 60], [110, 255, 200]),
     
     # Pot Detection (white pot)
-    "pot_white": ([0, 0, 180], [180, 30, 255]),          # High V, low S = white
+    "pot_white": ([0, 0, 180], [180, 60, 255]),          # High V, relaxed S (0-60)
     
     # Obstacle Detection (black physical objects)
-    "obstacle_black": ([0, 0, 0], [180, 255, 50])        # Low V = dark/black
+    "obstacle_black": ([0, 0, 0], [180, 255, 50])        # Low V
 }
 
 # ===== OBJECT DETECTION THRESHOLDS =====

@@ -97,8 +97,8 @@ class ColorCalibrator:
         cv2.namedWindow('Controls')
         
         # Create trackbars for HSV adjustment
-        cv2.createTrackbar('H_min', 'Controls', 0, 180, self._nothing)
-        cv2.createTrackbar('H_max', 'Controls', 180, 180, self._nothing)
+        cv2.createTrackbar('H_min', 'Controls', 0, 179, self._nothing)
+        cv2.createTrackbar('H_max', 'Controls', 179, 179, self._nothing)
         cv2.createTrackbar('S_min', 'Controls', 0, 255, self._nothing)
         cv2.createTrackbar('S_max', 'Controls', 255, 255, self._nothing)
         cv2.createTrackbar('V_min', 'Controls', 0, 255, self._nothing)
@@ -215,10 +215,10 @@ class ColorCalibrator:
                 # Handle red wraparound
                 if target_key == 'red_bottle':
                     print(f'    "{target_key}": ([{v["h_min"]}, {v["s_min"]}, {v["v_min"]}], [{v["h_max"]}, {v["s_max"]}, {v["v_max"]}]),')
-                    print(f'    "red_bottle_wrap": ([170, {v["s_min"]}, {v["v_min"]}], [180, {v["s_max"]}, {v["v_max"]}]),')
+                    print(f'    "red_bottle_wrap": ([170, {v["s_min"]}, {v["v_min"]}], [179, {v["s_max"]}, {v["v_max"]}]),')
                 elif target_key == 'red_floor':
                     print(f'    "{target_key}": ([{v["h_min"]}, {v["s_min"]}, {v["v_min"]}], [{v["h_max"]}, {v["s_max"]}, {v["v_max"]}]),')
-                    print(f'    "red_floor_wrap": ([170, {v["s_min"]}, {v["v_min"]}], [180, {v["s_max"]}, {v["v_max"]}]),')
+                    print(f'    "red_floor_wrap": ([170, {v["s_min"]}, {v["v_min"]}], [179, {v["s_max"]}, {v["v_max"]}]),')
                 else:
                     print(f'    "{target_key}": ([{v["h_min"]}, {v["s_min"]}, {v["v_min"]}], [{v["h_max"]}, {v["s_max"]}, {v["v_max"]}]),')
         
