@@ -252,9 +252,11 @@ if __name__ == "__main__":
                 break
             
             bottles = vision.detect_bottles(frame)
+            env_data = vision.detect_environment(frame)
             print(f"Detected {len(bottles)} bottles:", bottles)
             
-            vision.draw_debug(frame, bottles)
+            vision.draw_debug(frame, bottles, env_data)
+
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("\nTest interrupted")
