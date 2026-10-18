@@ -49,11 +49,14 @@ class ESPController:
             start_time = time.time()
             while time.time() - start_time < 5:
                 if self.ser.in_waiting > 0:
-                    line = self.ser.readline().decode('utf-8').strip()
-                    if "READY" in line:
-                        self.connected = True
-                        print(f"[SERIAL] Connected to ESP32 on {self.port}")
-                        return
+                    try:
+                        line = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                        if "READY" in line:
+                            self.connected = True
+                            print(f"[SERIAL] Connected to ESP32 on {self.port}")
+                            return
+                    except Exception:
+                        continue
             
             print("[SERIAL] Warning: No READY signal from ESP32, but connected")
             self.connected = True
@@ -73,7 +76,8 @@ class ESPController:
     
     def _auto_detect_port(self):
         """Auto-detect ESP32 USB port"""
-        possible_ports = glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*')
+        # Prioritize ttyACM0 for ESP32-S3
+        possible_ports = ['/dev/ttyACM0', '/dev/ttyUSB1'] + glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*')
         
         for port in possible_ports:
             try:
@@ -90,50 +94,43 @@ class ESPController:
     def send_command(self, speed_left, speed_right, lift=None, grip=None):
         """
         Send command to ESP32
-        
-        Args:
-            speed_left: Left motor speed (-255 to 255)
-            speed_right: Right motor speed (-255 to 255)
-            lift: Servo lift angle (45-120), if None use current
-            grip: Servo grip angle (30-90), if None use current
-        
-        Returns:
-            bool: True if command sent successfully
         """
         if not self.connected or self.ser is None:
             print("[SERIAL] ERROR: Not connected")
             return False
         
-        # Constrain values
-        speed_left = max(-255, min(255, int(speed_left)))
-        speed_right = max(-255, min(255, int(speed_right)))
+        # Constrain values and ensure integer format
+        speed_left = int(max(-255, min(255, int(speed_left))))
+        speed_right = int(max(-255, min(255, int(speed_right))))
         
         # Use current values if not specified
         if lift is None:
             lift = self.current_lift
         else:
-            lift = max(SERVO_LIFT_DOWN, min(SERVO_LIFT_UP, int(lift)))
+            lift = int(max(SERVO_LIFT_DOWN, min(SERVO_LIFT_UP, int(lift))))
             self.current_lift = lift
         
         if grip is None:
             grip = self.current_grip
         else:
-            grip = max(SERVO_GRIP_OPEN, min(SERVO_GRIP_CLOSE, int(grip)))
+            grip = int(max(SERVO_GRIP_OPEN, min(SERVO_GRIP_CLOSE, int(grip))))
             self.current_grip = grip
         
         # Update state
         self.current_speed_left = speed_left
         self.current_speed_right = speed_right
         
-        # Build command string
+        # Build command string (using comma-separated format)
         cmd = f"{speed_left},{speed_right},{lift},{grip}\n"
         
         try:
             self.ser.write(cmd.encode('utf-8'))
             
             # Wait for acknowledgment
+            # Wait a short moment to capture response
+            time.sleep(0.01)
             if self.ser.in_waiting > 0:
-                response = self.ser.readline().decode('utf-8').strip()
+                response = self.ser.readline().decode('utf-8', errors='ignore').strip()
                 if "OK" in response:
                     return True
                 elif "ERR" in response:
