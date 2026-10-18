@@ -42,20 +42,20 @@ COLOR_TARGETS = [
     ("obstacle_black", "Black Obstacle Object"),
 ]
 
-# Default HSV ranges (starting point)
+# Default HSV ranges (starting point - updated with non-overlapping ranges & max hue 179)
 DEFAULT_RANGES = {
     "home_base": {"h_min": 140, "h_max": 170, "s_min": 50, "s_max": 255, "v_min": 150, "v_max": 255},
-    "water_station": {"h_min": 100, "h_max": 130, "s_min": 100, "s_max": 255, "v_min": 50, "v_max": 150},
+    "water_station": {"h_min": 115, "h_max": 135, "s_min": 100, "s_max": 255, "v_min": 50, "v_max": 150},
     "red_bottle": {"h_min": 0, "h_max": 10, "s_min": 120, "s_max": 255, "v_min": 70, "v_max": 255},
-    "yellow_bottle": {"h_min": 20, "h_max": 30, "s_min": 100, "s_max": 255, "v_min": 100, "v_max": 255},
-    "green_bottle": {"h_min": 40, "h_max": 80, "s_min": 50, "s_max": 255, "v_min": 50, "v_max": 255},
+    "yellow_bottle": {"h_min": 20, "h_max": 35, "s_min": 100, "s_max": 255, "v_min": 100, "v_max": 255},
+    "green_bottle": {"h_min": 45, "h_max": 80, "s_min": 50, "s_max": 255, "v_min": 50, "v_max": 255},
     "blue_bottle": {"h_min": 90, "h_max": 110, "s_min": 80, "s_max": 255, "v_min": 80, "v_max": 255},
     "red_floor": {"h_min": 0, "h_max": 10, "s_min": 80, "s_max": 255, "v_min": 50, "v_max": 200},
-    "yellow_floor": {"h_min": 20, "h_max": 30, "s_min": 80, "s_max": 255, "v_min": 80, "v_max": 200},
-    "green_floor": {"h_min": 40, "h_max": 80, "s_min": 40, "s_max": 255, "v_min": 40, "v_max": 200},
+    "yellow_floor": {"h_min": 20, "h_max": 35, "s_min": 80, "s_max": 255, "v_min": 80, "v_max": 200},
+    "green_floor": {"h_min": 45, "h_max": 80, "s_min": 40, "s_max": 255, "v_min": 40, "v_max": 200},
     "blue_floor": {"h_min": 90, "h_max": 110, "s_min": 60, "s_max": 255, "v_min": 60, "v_max": 200},
-    "pot_white": {"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 30, "v_min": 180, "v_max": 255},
-    "obstacle_black": {"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 255, "v_min": 0, "v_max": 50},
+    "pot_white": {"h_min": 0, "h_max": 179, "s_min": 0, "s_max": 60, "v_min": 180, "v_max": 255},
+    "obstacle_black": {"h_min": 0, "h_max": 179, "s_min": 0, "s_max": 255, "v_min": 0, "v_max": 50},
 }
 
 
@@ -96,7 +96,7 @@ class ColorCalibrator:
         cv2.namedWindow('Result')
         cv2.namedWindow('Controls')
         
-        # Create trackbars for HSV adjustment
+        # Create trackbars for HSV adjustment (Fix max Hue to 179)
         cv2.createTrackbar('H_min', 'Controls', 0, 179, self._nothing)
         cv2.createTrackbar('H_max', 'Controls', 179, 179, self._nothing)
         cv2.createTrackbar('S_min', 'Controls', 0, 255, self._nothing)
