@@ -108,8 +108,10 @@ class ColorCalibrator:
         self._load_target_values(0)
     
     def _nothing(self, x):
-        """Trackbar callback (does nothing)"""
-        pass
+        """Trackbar callback (print current values for guidance)"""
+        values = self._get_current_values()
+        print(f"[CALIBRATION] H:{values['h_min']}-{values['h_max']} S:{values['s_min']}-{values['s_max']} V:{values['v_min']}-{values['v_max']}", end='\r')
+
     
     def _load_target_values(self, index):
         """Load HSV values for specific target"""
