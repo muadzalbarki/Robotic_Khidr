@@ -1,6 +1,6 @@
 # Dependencies
 ultralytics
-opencv-python-headless
+opencv-python
 picamera2
 pyserial
 numpy
