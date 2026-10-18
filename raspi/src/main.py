@@ -34,14 +34,25 @@ class AutonomousRobot:
             self.vision.close()
 
     def explore_cycle(self, env):
-        # Wall following + mapping logic here
-        print("[EXPLORE] Scanning...")
-        # Placeholder
+        # Gerak maju perlahan untuk eksplorasi
+        print("[EXPLORE] Scanning and moving forward...")
+        self.esp.forward(80) 
+        
+        # Contoh logika: jika ada obstacle terdeteksi oleh vision
+        if env["obstacles"]:
+            print("[EXPLORE] Obstacle detected, turning...")
+            self.esp.turn_right(100)
+            time.sleep(0.5)
+            self.esp.stop()
         pass
 
     def nav_to_station(self):
-        # Navigation logic here
+        print("[NAV] Moving to water station...")
+        self.esp.forward(100)
+        time.sleep(2)
+        self.esp.stop()
         pass
+
 
 if __name__ == "__main__":
     robot = AutonomousRobot()
