@@ -39,15 +39,21 @@ class VisionSystem:
         except Exception as e:
             print(f"[VISION] ERROR: Failed to initialize camera: {e}")
             self.picam = None
-
-        self.frame_width = FRAME_WIDTH
-        self.frame_height = FRAME_HEIGHT
-        self.frame_center_x = FRAME_CENTER_X
-        self.frame_center_y = FRAME_CENTER_Y
-        
-        self.model = None
-        self._init_yolo()
-        self._init_camera()
+    
+    def capture_frame(self) -> np.ndarray | None:
+        """Capture a frame from camera"""
+        if self.picam is None:
+            return None
+        try:
+            return self.picam.capture_array()
+        except Exception as e:
+            print(f"[VISION] ERROR: Failed to capture frame: {e}")
+            return None
+        try:
+            return self.picam.capture_array()
+        except Exception as e:
+            print(f"[VISION] ERROR: Failed to capture frame: {e}")
+            return None
     
     def _init_yolo(self):
         """Load Custom YOLO model and class names"""
@@ -108,69 +114,7 @@ class VisionSystem:
             print(f"[VISION] ERROR during detection: {e}")
             
         return detected_objects
-        
-        try:
-            # Run YOLO26n inference
-            results = self.model(frame, conf=YOLO_CONFIDENCE_THRESHOLD, verbose=False)
-            
-            for box in results[0].boxes:
-                cls_id = int(box.cls[0])
-                # Filter class for bottle (COCO class ID 39)
-                if cls_id == YOLO_BOTTLE_CLASS_ID:
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    
-                    # Ensure bounding box is within frame limits
-                    x1, y1 = max(0, x1), max(0, y1)
-                    x2, y2 = min(self.frame_width, x2), min(self.frame_height, y2)
-                    
-                    if x2 <= x1 or y2 <= y1:
-                        continue
-                    
-                    # Crop ROI for color analysis
-                    roi = frame[y1:y2, x1:x2]
-                    hsv_roi = cv2.cvtColor(roi, cv2.COLOR_RGB2HSV)
-                    
-                    # Determine color using COLOR_RANGES
-                    max_pixels = 0
-                    best_color = "unknown"
-                    
-                    color_keys = ['red_bottle', 'yellow_bottle', 'green_bottle', 'blue_bottle']
-                    for color_key in color_keys:
-                        if color_key not in COLOR_RANGES:
-                            continue
-                        
-                        lower, upper = COLOR_RANGES[color_key]
-                        lower = np.array(lower, dtype=np.uint8)
-                        upper = np.array(upper, dtype=np.uint8)
-                        
-                        mask = cv2.inRange(hsv_roi, lower, upper)
-                        
-                        # Handle red wraparound if needed
-                        if color_key == 'red_bottle' and 'red_bottle_wrap' in COLOR_RANGES:
-                            lw_low, lw_up = COLOR_RANGES['red_bottle_wrap']
-                            mask_wrap = cv2.inRange(hsv_roi, np.array(lw_low, dtype=np.uint8), np.array(lw_up, dtype=np.uint8))
-                            mask = cv2.bitwise_or(mask, mask_wrap)
-                        
-                        pixel_count = cv2.countNonZero(mask)
-                        if pixel_count > max_pixels:
-                            max_pixels = pixel_count
-                            best_color = color_key.replace('_bottle', '')
-                    
-                    cx = (x1 + x2) // 2
-                    cy = (y1 + y2) // 2
-                    area = (x2 - x1) * (y2 - y1)
-                    
-                    detected_bottles.append({
-                        "color": best_color,
-                        "bbox": (x1, y1, x2, y2),
-                        "center": (cx, cy),
-                        "area": float(area)
-                    })
-        except Exception as e:
-            print(f"[VISION] ERROR during bottle detection: {e}")
-            
-        return detected_bottles
-
+    
     def detect_environment(self, frame: np.ndarray):
         """
         Detect floor color, obstacles, and pots using HSV.
@@ -249,7 +193,6 @@ class VisionSystem:
         
         cv2.imshow(window_name, vis_frame)
         cv2.waitKey(1)
-
 
 
     def close(self):
