@@ -1,5 +1,4 @@
 # Dependencies
-ultralytics
 opencv-python
 picamera2
 pyserial
