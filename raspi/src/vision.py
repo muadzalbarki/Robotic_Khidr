@@ -1,28 +1,23 @@
 """
-Vision System Module untuk Robot Otonom (Hybrid YOLO26n + HSV)
-Mendeteksi objek dengan model YOLO26n (Bounding Box) dan klasifikasi warna via HSV.
+Vision System Module untuk Robot Otonom (OpenCV Color-based Detection)
+Mendeteksi objek menggunakan contour detection berbasis HSV.
 """
 
 import cv2
 import numpy as np
 from picamera2 import Picamera2
-from ultralytics import YOLO
 import time
 from config import *
 
 
 class VisionSystem:
     def __init__(self, camera_index=CAMERA_INDEX):
-        """Initialize Raspberry Pi Camera and YOLO model"""
+        """Initialize Raspberry Pi Camera"""
         self.camera_index = camera_index
         self.picam = None
         self.frame_width = FRAME_WIDTH
         self.frame_height = FRAME_HEIGHT
-        self.frame_center_x = FRAME_CENTER_X
-        self.frame_center_y = FRAME_CENTER_Y
         
-        self.model = None
-        self._init_yolo()
         self._init_camera()
     
     def _init_camera(self):
@@ -49,179 +44,61 @@ class VisionSystem:
         except Exception as e:
             print(f"[VISION] ERROR: Failed to capture frame: {e}")
             return None
-        try:
-            return self.picam.capture_array()
-        except Exception as e:
-            print(f"[VISION] ERROR: Failed to capture frame: {e}")
-            return None
-    
-    def _init_yolo(self):
-        """Load Custom YOLO model and class names"""
-        try:
-            print(f"[VISION] Loading custom model from {YOLO_MODEL_PATH}...")
-            self.model = YOLO(YOLO_MODEL_PATH)
-            self.class_names = self.model.names
-            print(f"[VISION] Model loaded. Classes: {self.class_names}")
-        except Exception as e:
-            print(f"[VISION] ERROR: Failed to load model: {e}")
-            self.model = None
-
-    def detect_bottles(self, frame: np.ndarray) -> list[dict]:
-        """
-        Detect objects using custom YOLO model with zone logic.
-        """
-        detected_objects = []
-        if self.model is None or frame is None:
-            return detected_objects
-        
-        try:
-            results = self.model(frame, conf=YOLO_CONFIDENCE_THRESHOLD, verbose=False)
             
-            height, width, _ = frame.shape
-            left_limit = width // 3
-            right_limit = 2 * width // 3
+    def detect_objects(self, frame: np.ndarray) -> list[dict]:
+        """Detect objects using HSV contour detection"""
+        detected_objects = []
+        hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        
+        height, width, _ = frame.shape
+        left_limit = width // 3
+        right_limit = 2 * width // 3
 
-            for result in results:
-                for box in result.boxes:
-                    cls_id = int(box.cls[0])
-                    class_name = self.model.names[cls_id]
+        # Iterasi setiap warna target yang didefinisikan di COLOR_RANGES
+        for color_name, (lower, upper) in COLOR_RANGES.items():
+            mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
+            
+            # Khusus Red Wraparound
+            if "red" in color_name and "wrap" in color_name:
+                continue # Red wrap sudah digabung di logic detect_environment atau handling terpisah
+            
+            # Find contours
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area > MIN_AREA_THRESHOLD:
+                    x, y, w, h = cv2.boundingRect(cnt)
+                    center_x = x + w // 2
+                    center_y = y + h // 2
                     
-                    # Confidence filter
-                    confidence = float(box.conf[0])
-                    if confidence < YOLO_CONFIDENCE_THRESHOLD:
-                        continue
-                        
-                    x1, y1, x2, y2 = map(int, box.xyxy[0])
-                    center_x = (x1 + x2) // 2
-                    center_y = (y1 + y2) // 2
-                    
-                    # Position logic
-                    if center_x < left_limit:
-                        position = "LEFT"
-                    elif center_x < right_limit:
-                        position = "CENTER"
-                    else:
-                        position = "RIGHT"
+                    position = "LEFT" if center_x < left_limit else ("RIGHT" if center_x > right_limit else "CENTER")
                     
                     detected_objects.append({
-                        "class": class_name,
-                        "confidence": confidence,
-                        "bbox": (x1, y1, x2, y2),
+                        "class": color_name,
+                        "area": area,
+                        "bbox": (x, y, w, h),
                         "center": (center_x, center_y),
                         "position": position
                     })
-        except Exception as e:
-            print(f"[VISION] ERROR during detection: {e}")
-            
         return detected_objects
-    
-    def detect_environment(self, frame: np.ndarray):
-        """
-        Detect floor color, obstacles, and pots using HSV.
-        """
-        results = {
-            "floor": None,
-            "obstacles": [],
-            "pots": []
-        }
-        
-        # Crop area for floor detection
-        y_min, y_max = FLOOR_DETECTION_ZONE["y_min"], FLOOR_DETECTION_ZONE["y_max"]
-        floor_roi = frame[y_min:y_max, :]
-        hsv_floor = cv2.cvtColor(floor_roi, cv2.COLOR_RGB2HSV)
-        
-        # 1. Detect Floor
-        max_area = 0
-        for color in ['red', 'yellow', 'green', 'blue']:
-            key = f"{color}_floor"
-            if key in COLOR_RANGES:
-                mask = cv2.inRange(hsv_floor, np.array(COLOR_RANGES[key][0]), np.array(COLOR_RANGES[key][1]))
-                if color == 'red' and 'red_floor_wrap' in COLOR_RANGES:
-                    mask = cv2.bitwise_or(mask, cv2.inRange(hsv_floor, np.array(COLOR_RANGES['red_floor_wrap'][0]), np.array(COLOR_RANGES['red_floor_wrap'][1])))
-                area = cv2.countNonZero(mask)
-                if area > FLOOR_ZONE_MIN_AREA and area > max_area:
-                    max_area = area
-                    results["floor"] = color
 
-        # 2. Detect Obstacles & Pots
-        hsv_full = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
-        
-        # Black obstacles
-        obs_mask = cv2.inRange(hsv_full, np.array(COLOR_RANGES["obstacle_black"][0]), np.array(COLOR_RANGES["obstacle_black"][1]))
-        contours, _ = cv2.findContours(obs_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            if cv2.contourArea(cnt) > OBSTACLE_MIN_AREA:
-                results["obstacles"].append(cv2.boundingRect(cnt))
-        
-        # White pots
-        pot_mask = cv2.inRange(hsv_full, np.array(COLOR_RANGES["pot_white"][0]), np.array(COLOR_RANGES["pot_white"][1]))
-        contours, _ = cv2.findContours(pot_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            if cv2.contourArea(cnt) > POT_MIN_AREA:
-                results["pots"].append(cv2.boundingRect(cnt))
-                
-        return results
-
-    def draw_debug(self, frame: np.ndarray, detections: list, env_data: dict, window_name=VIS_WINDOW_NAME):
-        """Draw all detections for debugging"""
+    def draw_debug(self, frame: np.ndarray, detections: list, window_name=VIS_WINDOW_NAME):
+        """Draw debug visualization"""
         if not ENABLE_VISUALIZATION:
             return
             
         vis_frame = frame.copy()
-        
-        # Draw Floor Text
-        if env_data["floor"]:
-            cv2.putText(vis_frame, f"Floor: {env_data['floor']}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            
-        # Draw Obstacles
-        for (x, y, w, h) in env_data["obstacles"]:
-            cv2.rectangle(vis_frame, (x, y), (x+w, y+h), (0, 0, 0), 2)
-            cv2.putText(vis_frame, "Obs", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
-            
-        # Draw Pots
-        for (x, y, w, h) in env_data["pots"]:
-            cv2.rectangle(vis_frame, (x, y), (x+w, y+h), (255, 255, 255), 2)
-            cv2.putText(vis_frame, "Pot", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
-
-        # Draw Detections
         for det in detections:
-            x1, y1, x2, y2 = det['bbox']
+            x, y, w, h = det['bbox']
             label = f"{det['class']} ({det['position']})"
-            cv2.rectangle(vis_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(vis_frame, label, (x1, max(20, y1 - 10)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+            cv2.rectangle(vis_frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+            cv2.putText(vis_frame, label, (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         
         cv2.imshow(window_name, vis_frame)
         cv2.waitKey(1)
 
-
     def close(self):
-        """Cleanup camera and windows"""
         if self.picam:
             self.picam.stop()
-            print("[VISION] Camera closed")
         cv2.destroyAllWindows()
-
-
-if __name__ == "__main__":
-    print("=== Custom Model Vision System Test ===\n")
-    vision = VisionSystem()
-    
-    try:
-        while True:
-            frame = vision.capture_frame()
-            if frame is None:
-                print("Failed to capture frame")
-                break
-            
-            objects = vision.detect_bottles(frame)
-            env_data = vision.detect_environment(frame)
-            print(f"Detected {len(objects)} objects:", objects)
-            
-            vision.draw_debug(frame, objects, env_data)
-
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        print("\nTest interrupted")
-    finally:
-        vision.close()

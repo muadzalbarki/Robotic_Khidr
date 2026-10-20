@@ -26,20 +26,31 @@ class MissionController:
                     self.ultrasonic_dist = sensor_dist
 
                 frame = self.vision.capture_frame()
+                if frame is None:
+                    time.sleep(0.1)
+                    continue
+                    
                 env = self.vision.detect_environment(frame)
-                objects = self.vision.detect_bottles(frame)
+                objects = self.vision.detect_objects(frame)
 
                 # 2. State Machine Logic
                 if self.state == "EXPLORE":
-                    # Simple wall following logic
-                    print("[EXPLORE] Scanning...")
-                    self.esp.forward(80)
-                    if env["obstacles"]:
+                    # Wall following logic using LiDAR
+                    print("[EXPLORE] Wall following...")
+                    self.lidar.update_scan()
+                    lidar_data = self.lidar.get_sector_distances()
+                    
+                    front_dist = self.lidar.get_sector_distances().get('front', 999)
+                    if self.ultrasonic_dist < 30:
+                        self.esp.stop()
+                    elif front_dist < 30:
                         self.esp.turn_right(100)
-                        time.sleep(0.5)
-                    # Jika menemukan target station, transisi
-                    if env["obstacles"] == []: # Placeholder
-                         pass
+                    else:
+                        self.esp.forward(100)
+                    
+                    # Check for water station
+                    if self.lidar.get_sector_distances().get('front', 999) < 50:
+                        self.state = "SCANNING_BOTTLE"
                 
                 elif self.state == "SCANNING_BOTTLE":
                     print("[SCAN] Berputar mencari botol...")
@@ -60,9 +71,9 @@ class MissionController:
                         cx = self.target_bottle['center'][0]
                         pusat_kamera = config.FRAME_CENTER_X 
                         
-                        if cx < (pusat_kamera - 40):
+                        if cx < (self.frame_center_x - 40):
                             self.esp.arc_left(60)
-                        elif cx > (pusat_kamera + 40):
+                        elif cx > (self.frame_center_x + 40):
                             self.esp.arc_right(60)
                         else:
                             self.esp.forward(60)
