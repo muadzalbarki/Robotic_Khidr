@@ -21,3 +21,9 @@ Mode Headless (Tanpa GUI - Untuk Lomba):
 ./main.py
 Mode GUI (Untuk Kalibrasi/Monitoring via SSH -X):
 ./run_robot.sh --gui
+
+
+Amankan venv
+
+mv ~/khidr/Robotic_Khidr/venv/ ~/khidr/
+mv ~/khidr/venv ~/khidr/Robotic_Khidr/
