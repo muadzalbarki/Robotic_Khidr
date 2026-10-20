@@ -26,54 +26,64 @@ class VisionSystem:
         self._init_camera()
     
     def _init_yolo(self):
-        """Load YOLO26n model with error handling"""
+        """Load Custom YOLO model and class names"""
         try:
-            print(f"[VISION] Loading YOLO26n model from {YOLO_MODEL_PATH}...")
+            print(f"[VISION] Loading custom model from {YOLO_MODEL_PATH}...")
             self.model = YOLO(YOLO_MODEL_PATH)
-            print("[VISION] YOLO26n model loaded successfully")
+            self.class_names = self.model.names
+            print(f"[VISION] Model loaded. Classes: {self.class_names}")
         except Exception as e:
-            print(f"[VISION] ERROR: Failed to load YOLO26n model: {e}")
+            print(f"[VISION] ERROR: Failed to load model: {e}")
             self.model = None
 
-    def _init_camera(self):
-        """Initialize Picamera2"""
-        try:
-            self.picam = Picamera2()
-            config = self.picam.create_preview_configuration(
-                main={"size": (self.frame_width, self.frame_height), "format": "RGB888"}
-            )
-            self.picam.configure(config)
-            self.picam.start()
-            time.sleep(2)
-            print("[VISION] Camera initialized successfully")
-        except Exception as e:
-            print(f"[VISION] ERROR: Failed to initialize camera: {e}")
-            self.picam = None
-    
-    def capture_frame(self) -> np.ndarray | None:
-        """Capture a frame from camera"""
-        if self.picam is None:
-            return None
-        try:
-            return self.picam.capture_array()
-        except Exception as e:
-            print(f"[VISION] ERROR: Failed to capture frame: {e}")
-            return None
-    
     def detect_bottles(self, frame: np.ndarray) -> list[dict]:
         """
-        Detect bottles using YOLO26n for bounding box and HSV for color classification.
-        
-        Args:
-            frame: Input image (RGB)
-            
-        Returns:
-            List of detected bottles dictionaries:
-            [{"color": str, "bbox": (x1, y1, x2, y2), "center": (cx, cy), "area": float}]
+        Detect objects using custom YOLO model with zone logic.
         """
-        detected_bottles = []
+        detected_objects = []
         if self.model is None or frame is None:
-            return detected_bottles
+            return detected_objects
+        
+        try:
+            results = self.model(frame, conf=YOLO_CONFIDENCE_THRESHOLD, verbose=False)
+            
+            height, width, _ = frame.shape
+            left_limit = width // 3
+            right_limit = 2 * width // 3
+
+            for result in results:
+                for box in result.boxes:
+                    cls_id = int(box.cls[0])
+                    class_name = self.model.names[cls_id]
+                    
+                    # Confidence filter
+                    confidence = float(box.conf[0])
+                    if confidence < YOLO_CONFIDENCE_THRESHOLD:
+                        continue
+                        
+                    x1, y1, x2, y2 = map(int, box.xyxy[0])
+                    center_x = (x1 + x2) // 2
+                    center_y = (y1 + y2) // 2
+                    
+                    # Position logic
+                    if center_x < left_limit:
+                        position = "LEFT"
+                    elif center_x < right_limit:
+                        position = "CENTER"
+                    else:
+                        position = "RIGHT"
+                    
+                    detected_objects.append({
+                        "class": class_name,
+                        "confidence": confidence,
+                        "bbox": (x1, y1, x2, y2),
+                        "center": (center_x, center_y),
+                        "position": position
+                    })
+        except Exception as e:
+            print(f"[VISION] ERROR during detection: {e}")
+            
+        return detected_objects
         
         try:
             # Run YOLO26n inference
@@ -184,7 +194,7 @@ class VisionSystem:
                 
         return results
 
-    def draw_debug(self, frame: np.ndarray, detections: dict, env_data: dict, window_name=VIS_WINDOW_NAME):
+    def draw_debug(self, frame: np.ndarray, detections: list, env_data: dict, window_name=VIS_WINDOW_NAME):
         """Draw all detections for debugging"""
         if not ENABLE_VISUALIZATION:
             return
@@ -205,30 +215,16 @@ class VisionSystem:
             cv2.rectangle(vis_frame, (x, y), (x+w, y+h), (255, 255, 255), 2)
             cv2.putText(vis_frame, "Pot", (x, y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
-        # Existing bottle drawing...
-        # [REUSED existing logic for bottles...]
-        self._draw_bottles(vis_frame, detections)
+        # Draw Detections
+        for det in detections:
+            x1, y1, x2, y2 = det['bbox']
+            label = f"{det['class']} ({det['position']})"
+            cv2.rectangle(vis_frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(vis_frame, label, (x1, max(20, y1 - 10)),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
         
         cv2.imshow(window_name, vis_frame)
         cv2.waitKey(1)
-
-    def _draw_bottles(self, frame, detections):
-        color_map = {
-            'red': (0, 0, 255),
-            'yellow': (0, 255, 255),
-            'green': (0, 255, 0),
-            'blue': (255, 0, 0),
-            'unknown': (128, 128, 128)
-        }
-        for det in detections:
-            x1, y1, x2, y2 = det['bbox']
-            color_name = det['color']
-            bgr_color = color_map.get(color_name, (255, 255, 255))
-            cv2.rectangle(frame, (x1, y1), (x2, y2), bgr_color, 2)
-            cv2.circle(frame, det['center'], 5, bgr_color, -1)
-            label = f"{color_name} bottle"
-            cv2.putText(frame, label, (x1, max(20, y1 - 10)),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, bgr_color, 2)
 
 
 
@@ -241,7 +237,7 @@ class VisionSystem:
 
 
 if __name__ == "__main__":
-    print("=== Hybrid Vision System Test (YOLO26n + HSV) ===\n")
+    print("=== Custom Model Vision System Test ===\n")
     vision = VisionSystem()
     
     try:
@@ -251,11 +247,11 @@ if __name__ == "__main__":
                 print("Failed to capture frame")
                 break
             
-            bottles = vision.detect_bottles(frame)
+            objects = vision.detect_bottles(frame)
             env_data = vision.detect_environment(frame)
-            print(f"Detected {len(bottles)} bottles:", bottles)
+            print(f"Detected {len(objects)} objects:", objects)
             
-            vision.draw_debug(frame, bottles, env_data)
+            vision.draw_debug(frame, objects, env_data)
 
             time.sleep(0.1)
     except KeyboardInterrupt:
