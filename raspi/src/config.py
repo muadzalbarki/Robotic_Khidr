@@ -71,9 +71,9 @@ POT_MIN_AREA = 3000             # Pot (large object)
 OBSTACLE_MIN_AREA = 500         # Black obstacles
 
 # YOLO26n Configuration
-YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "yolo26n.pt")
+YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "my_model.pt")
 YOLO_CONFIDENCE_THRESHOLD = 0.60
-YOLO_BOTTLE_CLASS_ID = 39       # COCO class ID for bottle
+#YOLO_BOTTLE_CLASS_ID = 39       # COCO class ID for bottle
 
 # Pot-specific detection
 POT_MIN_CIRCULARITY = 0.6       # Circle detection threshold (0-1)
@@ -133,11 +133,11 @@ STEERING_DEADZONE = 10          # Pixels, no correction if error < this
 ALIGNED_THRESHOLD = 20          # Pixels, considered aligned if error < this
 
 # ===== SERVO POSITIONS =====
-SERVO_LIFT_UP = 120             # Lift position for transport
-SERVO_LIFT_MID = 90             # Middle position
+SERVO_LIFT_UP = 90             # Lift position for transport
+SERVO_LIFT_MID = 60             # Middle position
 SERVO_LIFT_DOWN = 45            # Down position for grab/release
 SERVO_GRIP_OPEN = 30            # Gripper open
-SERVO_GRIP_CLOSE = 90           # Gripper close/holding
+SERVO_GRIP_CLOSE = 85           # Gripper close/holding
 
 # ===== STATE MACHINE TIMEOUTS =====
 GRAB_SEQUENCE_TIME = 3.0        # seconds for grab sequence
