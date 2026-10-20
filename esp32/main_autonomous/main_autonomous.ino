@@ -73,9 +73,27 @@ float getDistance() {
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-  long duration = pulseIn(echoPin, HIGH, 30000); // 30ms timeout
-  if (duration == 0) return 999.0;
-  return duration * 0.034 / 2.0;
+  long duration = pulseIn(echoPin, HIGH, 30000); // 30ms timeout = ~5m
+  if (duration == 0) return 999.0;  // Timeout
+  
+  float dist = duration * 0.0343 / 2.0;  // cm, lebih akurat
+  
+  // Filter noise: reject impossible values
+  if (dist > 400) return 999.0;  // Max range ~4m untuk HC-SR04
+  if (dist < 2) return 999.0;    // Terlalu dekat (<2cm)
+  
+  return dist;
+}
+
+float getDistanceFiltered() {
+  float sum = 0;
+  int valid = 0;
+  for (int i = 0; i < 3; i++) {
+    float d = getDistance();
+    if (d < 999) { sum += d; valid++; }
+    delay(5);
+  }
+  return (valid > 0) ? sum / valid : 999.0;
 }
 
 // ================= FUNGSI MOTOR =================
@@ -211,7 +229,7 @@ void loop() {
   
   // Stream ultrasonic data every 100ms
   if (millis() - lastUltraTime > 100) {
-    float dist = getDistance();
+    float dist = getDistanceFiltered();  // Use filtered average
     Serial.print("U:");
     Serial.println(dist);
     
