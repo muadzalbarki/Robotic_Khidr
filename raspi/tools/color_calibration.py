@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Interactive Color Calibration Tool untuk HSV Range Tuning
 Gunakan tool ini untuk kalibrasi warna semua target detection:
@@ -9,7 +10,9 @@ Gunakan tool ini untuk kalibrasi warna semua target detection:
 - Obstacles (black)
 
 Usage:
-    python3 color_calibration.py
+    python3 color_calibration.py                    # Interactive mode
+    python3 color_calibration.py --auto-update      # Auto-update config.py on save
+    python3 color_calibration.py --auto-update --no-gui  # Headless mode (load saved values)
 
 Controls:
     q - Quit
@@ -24,6 +27,10 @@ from picamera2 import Picamera2
 import time
 import json
 import os
+import sys
+import argparse
+import re
+import shutil
 
 
 # Color targets to calibrate
@@ -60,10 +67,12 @@ DEFAULT_RANGES = {
 
 
 class ColorCalibrator:
-    def __init__(self):
+    def __init__(self, auto_update=False):
+        self.auto_update = auto_update
         self.picam = None
         self.current_index = 0
         self.calibrated_values = {}
+        self.config_path = os.path.join(os.path.dirname(__file__), "..", "src", "config.py")
         
         # Load existing calibration if available
         self.load_calibration()
@@ -111,7 +120,6 @@ class ColorCalibrator:
         """Trackbar callback (print current values for guidance)"""
         values = self._get_current_values()
         print(f"[CALIBRATION] H:{values['h_min']}-{values['h_max']} S:{values['s_min']}-{values['s_max']} V:{values['v_min']}-{values['v_max']}", end='\r')
-
     
     def _load_target_values(self, index):
         """Load HSV values for specific target"""
@@ -122,7 +130,7 @@ class ColorCalibrator:
         elif target_key in DEFAULT_RANGES:
             values = DEFAULT_RANGES[target_key]
         else:
-            values = {"h_min": 0, "h_max": 180, "s_min": 0, "s_max": 255, "v_min": 0, "v_max": 255}
+            values = {"h_min": 0, "h_max": 179, "s_min": 0, "s_max": 255, "v_min": 0, "v_max": 255}
         
         cv2.setTrackbarPos('H_min', 'Controls', values['h_min'])
         cv2.setTrackbarPos('H_max', 'Controls', values['h_max'])
@@ -155,6 +163,54 @@ class ColorCalibrator:
         values = self._get_current_values()
         self.calibrated_values[target_key] = values
         print(f"[SAVED] {target_key}: {values}")
+        
+        # Auto-update config.py if enabled
+        if self.auto_update:
+            self._update_config_py()
+    
+    def _update_config_py(self):
+        """Update config.py COLOR_RANGES with calibrated values"""
+        config_path = os.path.join(os.path.dirname(__file__), "..", "src", "config.py")
+        
+        # Backup original
+        backup_path = self.config_path + ".backup"
+        try:
+            shutil.copy2(self.config_path, backup_path)
+            print(f"[BACKUP] Config backed up to {backup_path}")
+        except:
+            pass
+        
+        # Read current config
+        with open(self.config_path, 'r') as f:
+            config_content = f.read()
+        
+        # Generate new COLOR_RANGES block
+        new_ranges = "COLOR_RANGES = {\n"
+        
+        for target_key, desc in COLOR_TARGETS:
+            if target_key in self.calibrated_values:
+                v = self.calibrated_values[target_key]
+                
+                # Handle red wraparound
+                if target_key == 'red_bottle':
+                    new_ranges += f'    "{target_key}": ([{v["h_min"]}, {v["s_min"]}, {v["v_min"]}], [{v["h_max"]}, {v["s_max"]}, {v["v_max"]}]),\n'
+                    new_ranges += f'    "red_bottle_wrap": ([170, {v["s_min"]}, {v["v_min"]}], [179, {v["s_max"]}, {v["v_max"]}]),\n'
+                elif target_key == 'red_floor':
+                    new_ranges += f'    "{target_key}": ([{v["h_min"]}, {v["s_min"]}, {v["v_min"]}], [{v["h_max"]}, {v["s_max"]}, {v["v_max"]}]),\n'
+                    new_ranges += f'    "red_floor_wrap": ([170, {v["s_min"]}, {v["v_min"]}], [179, {v["s_max"]}, {v["v_max"]}]),\n'
+                else:
+                    new_ranges += f'    "{target_key}": ([{v["h_min"]}, {v["s_min"]}, {v["v_min"]}], [{v["h_max"]}, {v["s_max"]}, {v["v_max"]}]),\n'
+        
+        new_ranges += "}\n"
+        
+        # Replace COLOR_RANGES block in config
+        new_ranges_block = re.sub(r'COLOR_RANGES\s*=\s*\{[^}]+\}', new_ranges, config_content, flags=re.DOTALL)
+        
+        # Write updated config
+        with open(self.config_path, 'w') as f:
+            f.write(new_ranges)
+        
+        print(f"[AUTO-UPDATE] config.py updated with new HSV ranges")
     
     def next_target(self):
         """Move to next color target"""
@@ -196,7 +252,7 @@ class ColorCalibrator:
                 json.dump(self.calibrated_values, f, indent=2)
             print(f"\n[SAVED] Calibration saved to {calib_file}")
             
-            # Generate config.py format
+            # Generate config.py format for manual copy
             self._generate_config_format()
             
         except Exception as e:
@@ -316,5 +372,12 @@ class ColorCalibrator:
 
 
 if __name__ == "__main__":
-    calibrator = ColorCalibrator()
+    parser = argparse.ArgumentParser(description='Color Calibration Tool')
+    parser.add_argument('--auto-update', action='store_true', 
+                        help='Auto-update config.py on save')
+    parser.add_argument('--no-gui', action='store_true',
+                        help='Run in headless mode (load saved values)')
+    args = parser.parse_args()
+    
+    calibrator = ColorCalibrator(auto_update=args.auto_update)
     calibrator.run()

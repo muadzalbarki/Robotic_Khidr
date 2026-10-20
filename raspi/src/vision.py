@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 from picamera2 import Picamera2
 import time
+import importlib
 from config import *
 
 
@@ -98,7 +99,30 @@ class VisionSystem:
         cv2.imshow(window_name, vis_frame)
         cv2.waitKey(1)
 
+    def reload_color_ranges(self):
+        """Hot-reload COLOR_RANGES from config.py"""
+        import importlib
+        import config
+        importlib.reload(config)
+        from config import COLOR_RANGES, MIN_AREA_THRESHOLD, FLOOR_DETECTION_ZONE, FRAME_WIDTH, FRAME_HEIGHT, FRAME_CENTER_X, FRAME_CENTER_Y
+        globals().update({
+            'COLOR_RANGES': config.COLOR_RANGES,
+            'MIN_AREA_THRESHOLD': config.MIN_AREA_THRESHOLD,
+            'FLOOR_DETECTION_ZONE': config.FLOOR_DETECTION_ZONE,
+            'FRAME_WIDTH': config.FRAME_WIDTH,
+            'FRAME_HEIGHT': config.FRAME_HEIGHT,
+            'FRAME_CENTER_X': config.FRAME_CENTER_X,
+            'FRAME_CENTER_Y': config.FRAME_CENTER_Y,
+        })
+        # Update instance attributes
+        self.frame_width = FRAME_WIDTH
+        self.frame_height = FRAME_HEIGHT
+        self.frame_center_x = FRAME_CENTER_X
+        self.frame_center_y = FRAME_CENTER_Y
+        print("[VISION] COLOR_RANGES hot-reloaded from config.py")
+
     def close(self):
         if self.picam:
             self.picam.stop()
+            print("[VISION] Camera closed")
         cv2.destroyAllWindows()
