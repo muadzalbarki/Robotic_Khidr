@@ -155,19 +155,21 @@ class VisionSystem:
         hsv_full = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
         
         # Black obstacles
-        obs_mask = cv2.inRange(hsv, np.array(COLOR_RANGES["obstacle_black"][0]), np.array(COLOR_RANGES["obstacle_black"][1]))
+        obstacles = []
+        obs_mask = cv2.inRange(hsv_full, np.array(COLOR_RANGES["obstacle_black"][0]), np.array(COLOR_RANGES["obstacle_black"][1]))
         contours, _ = cv2.findContours(obs_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             if cv2.contourArea(cnt) > OBSTACLE_MIN_AREA:
-                self.obstacles.append(cv2.boundingRect(cnt))
+                obstacles.append(cv2.boundingRect(cnt))
         
         # White pots
-        pot_mask = cv2.inRange(hsv, np.array(COLOR_RANGES["pot_white"][0]), np.array(COLOR_RANGES["pot_white"][1]))
+        pot_mask = cv2.inRange(hsv_full, np.array(COLOR_RANGES["pot_white"][0]), np.array(COLOR_RANGES["pot_white"][1]))
         contours, _ = cv2.findContours(pot_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for cnt in contours:
             if cv2.contourArea(cnt) > POT_MIN_AREA:
                 results["pots"].append(cv2.boundingRect(cnt))
                 
+        results["obstacles"] = obstacles
         return results
 
     def close(self):
