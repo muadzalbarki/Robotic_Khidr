@@ -30,15 +30,18 @@ def test_vision():
         print(f"[PASS] Frame captured: {frame.shape}")
         
         print("\n[TEST] Detecting all objects...")
-        bottles = vision.detect_bottles(frame)
+        objects = vision.detect_objects(frame)
         env = vision.detect_environment(frame)
+        
+        # Filter bottles from objects
+        bottles = [obj for obj in objects if "botol" in obj['class'].lower()]
         
         print(f"[INFO] Detected {len(bottles)} bottles")
         print(f"[INFO] Floor color: {env['floor']}")
         print(f"[INFO] Detected {len(env['obstacles'])} obstacles and {len(env['pots'])} pots")
         
         print("\n[TEST] Visualization...")
-        vision.draw_debug(frame, bottles, env)
+        vision.draw_debug(frame, objects, env)
         
         print("\n[PASS] Vision system test successful!")
         print("Press any key in image window to continue...")
