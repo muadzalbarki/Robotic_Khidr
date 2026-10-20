@@ -31,35 +31,67 @@ class MissionController:
 
                 # 2. State Machine Logic
                 if self.state == "EXPLORE":
-                    # Simple wall following logic
-                    print("[EXPLORE] Scanning...")
+                    print("[EXPLORE] Bergerak ke Water Station (Simulasi Lidar)")
                     self.esp.forward(80)
-                    if env["obstacles"]:
-                        self.esp.turn_right(100)
-                        time.sleep(0.5)
-                
-                elif self.state == "NAV_STATION":
-                    print("[NAV] Moving to station...")
-                    # Add pathfinding to station coords here
+                    time.sleep(2) # Dummy delay navigasi
+                    self.esp.stop()
                     self.state = "SCANNING_BOTTLE"
                 
+                elif self.state == "SCANNING_BOTTLE":
+                    print("[SCAN] Berputar mencari botol...")
+                    self.esp.turn_right(60) 
+                    
+                    if len(bottles) > 0:
+                        self.esp.stop()
+                        self.target_bottle = bottles[0]
+                        print(f"[VISION] Terkunci pada botol: {self.target_bottle['color']}")
+                        self.state = "APPROACHING_BOTTLE"
+
                 elif self.state == "APPROACHING_BOTTLE":
-                    # Use ultrasonic to stop at 5cm
-                    if self.ultrasonic_dist < 5.0:
+                    if len(bottles) > 0:
+                        self.target_bottle = bottles[0]
+                        cx = self.target_bottle['center'][0]
+                        pusat_kamera = config.FRAME_CENTER_X 
+                        
+                        if cx < (pusat_kamera - 40):
+                            self.esp.arc_left(60)
+                        elif cx > (pusat_kamera + 40):
+                            self.esp.arc_right(60)
+                        else:
+                            self.esp.forward(60)
+                    
+                    print(f"[APPROACH] Jarak Ultrasonik: {self.ultrasonic_dist} cm")
+                    
+                    if self.ultrasonic_dist <= 5.0:
+                        print("[APPROACH] Jarak ideal! Menghentikan motor.")
                         self.esp.stop()
                         self.state = "GRIPPING"
-                    else:
-                        self.esp.forward(60)
 
                 elif self.state == "GRIPPING":
-                    print("[ACTION] Gripping...")
-                    self.esp.grab_bottle()
+                    print("[ACTION] Mengeksekusi jepitan...")
+                    self.esp.grab_bottle(verbose=True)
                     self.state = "NAV_ZONE"
 
-                # ... (add other states)
+                elif self.state == "NAV_ZONE":
+                    print("[NAV] Mundur & bergerak ke area pot...")
+                    self.esp.backward(80)
+                    time.sleep(1.5)
+                    self.esp.turn_left(80)
+                    time.sleep(1)
+                    self.esp.stop()
+                    self.state = "PLACING_BOTTLE"
 
-                time.sleep(0.1)
+                elif self.state == "PLACING_BOTTLE":
+                    print("[ACTION] Melepaskan botol ke zona...")
+                    self.esp.release_bottle(verbose=True)
+                    self.state = "EXPLORE"
+
+                if config.ENABLE_VISUALIZATION:
+                    self.vision.draw_debug(frame, bottles, env)
+
+                time.sleep(0.05)
         except KeyboardInterrupt:
+            print("\n[MISSION] Dihentikan paksa. Mematikan motor...")
             self.esp.stop()
             self.vision.close()
 
