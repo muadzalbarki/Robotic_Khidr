@@ -208,12 +208,42 @@ class ColorCalibrator:
         
         new_ranges += "}\n"
         
-        # Replace COLOR_RANGES block in config
-        new_ranges_block = re.sub(r'COLOR_RANGES\s*=\s*\{[^}]+\}', new_ranges, config_content, flags=re.DOTALL)
+        # Replace COLOR_RANGES block in config - use line-by-line replacement for safety
+        lines = config_content.split('\n')
+        new_lines = []
+        in_color_ranges = False
+        brace_count = 0
+        replaced = False
+        
+        for line in config_content.split('\n'):
+            if 'COLOR_RANGES' in line and '=' in line and not in_color_ranges:
+                in_color_ranges = True
+                brace_count = line.count('{') - line.count('}')
+                new_lines.append(new_ranges.rstrip('\n'))
+                replaced = True
+                if brace_count <= 0:
+                    in_color_ranges = False
+                continue
+            
+            if in_color_ranges:
+                brace_count += line.count('{') - line.count('}')
+                if brace_count <= 0:
+                    in_color_ranges = False
+                # Skip old lines
+                continue
+            
+            new_lines.append(line)
+        
+        if replaced:
+            new_config = '\n'.join(new_lines)
+        else:
+            # Fallback: if pattern not found, append at end before last non-empty line
+            print("[WARN] COLOR_RANGES block not found, appending at end")
+            new_config = config_content.rstrip() + '\n' + new_ranges
         
         # Write updated config
         with open(self.config_path, 'w') as f:
-            f.write(new_ranges)
+            f.write('\n'.join(new_config) if isinstance(new_config, list) else new_config)
         
         print(f"[AUTO-UPDATE] config.py updated with new HSV ranges")
     
