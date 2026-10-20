@@ -10,9 +10,11 @@ Gunakan tool ini untuk kalibrasi warna semua target detection:
 - Obstacles (black)
 
 Usage:
-    python3 color_calibration.py                    # Interactive mode
+    python3 color_calibration.py                    # Interactive mode (auto camera)
     python3 color_calibration.py --auto-update      # Auto-update config.py on save
-    python3 color_calibration.py --auto-update --no-gui  # Headless mode (load saved values)
+    python3 color_calibration.py --camera webcam    # Force webcam (laptop)
+    python3 color_calibration.py --camera pi        # Force Pi Camera
+    python3 color_calibration.py --camera auto      # Auto detect (default)
 
 Controls:
     q - Quit
@@ -23,7 +25,6 @@ Controls:
 
 import cv2
 import numpy as np
-from picamera2 import Picamera2
 import time
 import json
 import os
@@ -31,6 +32,10 @@ import sys
 import argparse
 import re
 import shutil
+
+# Add parent directory to path for camera_factory import
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+from camera_factory import create_camera
 
 
 # Color targets to calibrate
@@ -67,8 +72,9 @@ DEFAULT_RANGES = {
 
 
 class ColorCalibrator:
-    def __init__(self, auto_update=False):
+    def __init__(self, auto_update=False, camera_source='auto'):
         self.auto_update = auto_update
+        self.camera_source = camera_source
         self.picam = None
         self.current_index = 0
         self.calibrated_values = {}
@@ -84,16 +90,15 @@ class ColorCalibrator:
         self._create_windows()
     
     def _init_camera(self):
-        """Initialize Raspberry Pi Camera"""
+        """Initialize camera based on source"""
         try:
-            self.picam = Picamera2()
-            config = self.picam.create_preview_configuration(
-                main={"size": (640, 480), "format": "RGB888"}
-            )
-            self.picam.configure(config)
-            self.picam.start()
-            time.sleep(2)
-            print("[CAMERA] Initialized successfully")
+            # Import camera factory
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+            from camera_factory import create_camera
+            
+            self.camera_source = getattr(self, 'camera_source', 'auto')
+            self.picam = create_camera(self.camera_source)
+            print(f"[CAMERA] Initialized with source: {self.camera_source}")
         except Exception as e:
             print(f"[ERROR] Failed to initialize camera: {e}")
             exit(1)
@@ -375,9 +380,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Color Calibration Tool')
     parser.add_argument('--auto-update', action='store_true', 
                         help='Auto-update config.py on save')
+    parser.add_argument('--camera', choices=['auto', 'pi', 'webcam'], default='auto',
+                        help='Camera source: auto (default), pi (PiCamera), webcam (laptop)')
+    parser.add_argument('--camera-index', type=int, default=0,
+                        help='Camera index for webcam (default 0)')
     parser.add_argument('--no-gui', action='store_true',
                         help='Run in headless mode (load saved values)')
     args = parser.parse_args()
     
-    calibrator = ColorCalibrator(auto_update=args.auto_update)
+    calibrator = ColorCalibrator(auto_update=args.auto_update, camera_source=args.camera)
     calibrator.run()
