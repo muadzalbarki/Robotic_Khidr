@@ -91,6 +91,10 @@ class ESPController:
         
         return None
     
+    def set_motor_speeds(self, speed_left, speed_right):
+        """Set motor speeds directly (alias for send_command with current lift/grip)"""
+        return self.send_command(speed_left, speed_right, lift=self.current_lift, grip=self.current_grip)
+    
     def send_command(self, speed_left, speed_right, lift=None, grip=None):
         """
         Send command to ESP32
