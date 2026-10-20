@@ -119,7 +119,7 @@ class MissionController:
                     
                     print(f"[APPROACH] Jarak: {self.ultrasonic_dist} cm")
                     
-                    if self.ultrasonic_dist <= 6.0:  # 6cm threshold
+                    if self.ultrasonic_dist <= config.ULTRASONIC_GRAB_DISTANCE:  # 6cm threshold
                         print("[APPROACH] Jarak ideal! Menghentikan motor.")
                         self.esp.stop()
                         self.state = "GRIPPING"
