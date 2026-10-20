@@ -70,10 +70,10 @@ FLOOR_ZONE_MIN_AREA = 2000      # Watering zone floors
 POT_MIN_AREA = 3000             # Pot (large object)
 OBSTACLE_MIN_AREA = 500         # Black obstacles
 
-# YOLO26n Configuration
-YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "my_model.pt")
+# Custom Model Configuration (OpenCV HSV-based, no YOLO)
+# YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "..", "models", "my_model.pt")
 YOLO_CONFIDENCE_THRESHOLD = 0.60
-#YOLO_BOTTLE_CLASS_ID = 39       # COCO class ID for bottle
+# YOLO_BOTTLE_CLASS_ID = 39       # COCO class ID for bottle (DEPRECATED - using OpenCV HSV)
 
 # Pot-specific detection
 POT_MIN_CIRCULARITY = 0.6       # Circle detection threshold (0-1)
@@ -109,10 +109,21 @@ DISTANCE_THRESHOLDS = {
 BLACK_OBSTACLE_CRITICAL_DISTANCE = 50   # cm
 BLACK_OBSTACLE_WARNING_DISTANCE = 100   # cm
 
+# Ultrasonic-based (gripper distance)
+ULTRASONIC_GRAB_DISTANCE = 6            # cm - grab when ultrasonic <= 6cm
+
 # LiDAR-based (all physical obstacles)
 LIDAR_CRITICAL_THRESHOLD = 30           # cm - emergency stop
-LIDAR_WARNING_THRESHOLD = 50            # cm - slow + avoid
+LIDAR_WARNING_THRESHOLD = 70            # cm - slow + avoid (increased from 50)
 LIDAR_SAFE_DISTANCE = 80                # cm - maintain this distance
+
+# LiDAR Wall Following & Mapping
+LIDAR_WALL_FOLLOW_DIST = 200            # mm - target distance from wall (20cm)
+LIDAR_WALL_FOLLOW_TOLERANCE = 30        # mm - tolerance for wall following
+LIDAR_WARNING_THRESHOLD = 700           # mm - warning threshold (70cm)
+LIDAR_CRITICAL_THRESHOLD = 300          # mm - critical threshold (30cm)
+LIDAR_WALL_FOLLOW_DIST = 200            # mm - target distance from wall (20cm)
+LIDAR_WALL_FOLLOW_TOLERANCE = 30        # mm - tolerance for wall following
 
 # ===== NAVIGATION PARAMETERS =====
 # Motor speeds (PWM values 0-255)
