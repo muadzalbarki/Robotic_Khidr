@@ -13,9 +13,33 @@ from config import *
 
 class VisionSystem:
     def __init__(self, camera_index=CAMERA_INDEX):
-        """Initialize Raspberry Pi Camera and YOLO26n model"""
+        """Initialize Raspberry Pi Camera and YOLO model"""
         self.camera_index = camera_index
         self.picam = None
+        self.frame_width = FRAME_WIDTH
+        self.frame_height = FRAME_HEIGHT
+        self.frame_center_x = FRAME_CENTER_X
+        self.frame_center_y = FRAME_CENTER_Y
+        
+        self.model = None
+        self._init_yolo()
+        self._init_camera()
+    
+    def _init_camera(self):
+        """Initialize Picamera2"""
+        try:
+            self.picam = Picamera2()
+            config = self.picam.create_preview_configuration(
+                main={"size": (self.frame_width, self.frame_height), "format": "RGB888"}
+            )
+            self.picam.configure(config)
+            self.picam.start()
+            time.sleep(2)
+            print("[VISION] Camera initialized successfully")
+        except Exception as e:
+            print(f"[VISION] ERROR: Failed to initialize camera: {e}")
+            self.picam = None
+
         self.frame_width = FRAME_WIDTH
         self.frame_height = FRAME_HEIGHT
         self.frame_center_x = FRAME_CENTER_X

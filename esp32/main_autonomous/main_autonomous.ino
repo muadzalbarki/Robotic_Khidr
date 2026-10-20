@@ -45,12 +45,12 @@ const int pinLift = 4;
 const int pinGripper = 5;
 
 // ================= ULTRASONIC =================
-const int trigPin = 8;
-const int echoPin = 9;
+const int trigPin = 15;
+const int echoPin = 16;
 const int ledPin = 10;
 unsigned long lastUltraTime = 0;
 
-int currentLift = 90;
+int currentLift = 45;
 int currentGrip = 30;
 
 const int LIFT_MIN = 45;
