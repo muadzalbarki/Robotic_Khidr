@@ -235,13 +235,87 @@ class ESPController:
         
         return True
     
-    def read_response(self):
-        """Read any available response from ESP32"""
-        if self.ser and self.ser.in_waiting > 0:
-            try:
-                return self.ser.readline().decode('utf-8').strip()
-            except:
-                return None
+    def send_command(self, speed_left, speed_right, lift=None, grip=None):
+        """
+        Send command to ESP32
+        
+        Args:
+            speed_left: Left motor speed (-255 to 255)
+            speed_right: Right motor speed (-255 to 255)
+            lift: Servo lift angle (45-120), if None use current
+            grip: Servo grip angle (30-90), if None use current
+        
+        Returns:
+            bool: True if command sent successfully
+        """
+        if not self.connected or self.ser is None:
+            print("[SERIAL] ERROR: Not connected")
+            return False
+        
+        # Constrain values and ensure integer format
+        speed_left = int(max(-255, min(255, int(speed_left))))
+        speed_right = int(max(-255, min(255, int(speed_right))))
+        
+        # Use current values if not specified
+        if lift is None:
+            lift = self.current_lift
+        else:
+            lift = int(max(SERVO_LIFT_DOWN, min(SERVO_LIFT_UP, int(lift))))
+            self.current_lift = lift
+        
+        if grip is None:
+            grip = self.current_grip
+        else:
+            grip = int(max(SERVO_GRIP_OPEN, min(SERVO_GRIP_CLOSE, int(grip))))
+            self.current_grip = grip
+        
+        # Update state
+        self.current_speed_left = speed_left
+        self.current_speed_right = speed_right
+        
+        # Build command string (using comma-separated format)
+        cmd = f"{speed_left},{speed_right},{lift},{grip}\n"
+        
+        try:
+            self.ser.write(cmd.encode('utf-8'))
+            self.ser.flush()  # Ensure packet is sent immediately
+            
+            # Wait for acknowledgment
+            # Wait a short moment to capture response
+            time.sleep(0.01)
+            if self.ser.in_waiting > 0:
+                response = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                if "OK" in response:
+                    return True
+                elif "ERR" in response:
+                    print(f"[SERIAL] ESP32 Error: {response}")
+                    return False
+            
+            return True
+            
+        except serial.SerialException as e:
+            print(f"[SERIAL] Send error: {e}")
+            self.connected = False
+            return False
+
+    def read_sensor_data(self):
+        """Read ultrasonic sensor data from ESP32 (non-blocking)"""
+        if not self.connected or self.ser is None:
+            return None
+        
+        try:
+            while self.ser.in_waiting > 0:
+                line = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                if line.startswith("U:"):
+                    try:
+                        return float(line[2:])
+                    except ValueError:
+                        continue
+                elif line.startswith("ERR:") or line.startswith("WARN:") or line.startswith("OK"):
+                    # These are command responses, ignore in sensor reading
+                    continue
+        except Exception:
+            pass
         return None
     
     def close(self):

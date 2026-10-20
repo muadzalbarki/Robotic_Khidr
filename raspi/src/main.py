@@ -5,46 +5,63 @@ from lidar_nav import LidarNavigator
 from mapper import ArenaMap
 import config
 
-class AutonomousRobot:
+class MissionController:
     def __init__(self):
         self.esp = ESPController()
         self.vision = VisionSystem()
         self.lidar = LidarNavigator()
         self.map = ArenaMap()
-        self.state = "EXPLORE" # EXPLORE, NAV_STATION, GRAB, NAV_ZONE, RELEASE, RETURN_HOME
+        self.state = "EXPLORE" # EXPLORE, NAV_STATION, SCANNING_BOTTLE, APPROACHING_BOTTLE, GRIPPING, NAV_ZONE, PLACING_BOTTLE, EVALUATING, RETURN_HOME
         self.bottles_delivered = {"red": 0, "yellow": 0, "green": 0, "blue": 0}
+        self.target_bottle = None
+        self.ultrasonic_dist = 999.0
 
     def run(self):
         print("[MISSION] Starting autonomous mission...")
         try:
             while True:
+                # 1. Update Sensor Data
+                sensor_dist = self.esp.read_sensor_data()
+                if sensor_dist is not None:
+                    self.ultrasonic_dist = sensor_dist
+
                 frame = self.vision.capture_frame()
                 env = self.vision.detect_environment(frame)
                 bottles = self.vision.detect_bottles(frame)
 
+                # 2. State Machine Logic
                 if self.state == "EXPLORE":
-                    self.explore_cycle(env)
-                elif self.state == "NAV_STATION":
-                    self.nav_to_station()
-                # ... (state logic selanjutnya)
+                    # Simple wall following logic
+                    print("[EXPLORE] Scanning...")
+                    self.esp.forward(80)
+                    if env["obstacles"]:
+                        self.esp.turn_right(100)
+                        time.sleep(0.5)
                 
+                elif self.state == "NAV_STATION":
+                    print("[NAV] Moving to station...")
+                    # Add pathfinding to station coords here
+                    self.state = "SCANNING_BOTTLE"
+                
+                elif self.state == "APPROACHING_BOTTLE":
+                    # Use ultrasonic to stop at 5cm
+                    if self.ultrasonic_dist < 5.0:
+                        self.esp.stop()
+                        self.state = "GRIPPING"
+                    else:
+                        self.esp.forward(60)
+
+                elif self.state == "GRIPPING":
+                    print("[ACTION] Gripping...")
+                    self.esp.grab_bottle()
+                    self.state = "NAV_ZONE"
+
+                # ... (add other states)
+
                 time.sleep(0.1)
         except KeyboardInterrupt:
             self.esp.stop()
             self.vision.close()
-
-    def explore_cycle(self, env):
-        # Gerak maju perlahan untuk eksplorasi
-        print("[EXPLORE] Scanning and moving forward...")
-        self.esp.forward(80) 
-        
-        # Contoh logika: jika ada obstacle terdeteksi oleh vision
-        if env["obstacles"]:
-            print("[EXPLORE] Obstacle detected, turning...")
-            self.esp.turn_right(100)
-            time.sleep(0.5)
-            self.esp.stop()
-        pass
 
     def nav_to_station(self):
         print("[NAV] Moving to water station...")
@@ -55,5 +72,5 @@ class AutonomousRobot:
 
 
 if __name__ == "__main__":
-    robot = AutonomousRobot()
+    robot = MissionController()
     robot.run()

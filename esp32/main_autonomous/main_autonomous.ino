@@ -44,6 +44,12 @@ Servo servoGripper;
 const int pinLift = 4;
 const int pinGripper = 5;
 
+// ================= ULTRASONIC =================
+const int trigPin = 8;
+const int echoPin = 9;
+const int ledPin = 10;
+unsigned long lastUltraTime = 0;
+
 int currentLift = 90;
 int currentGrip = 30;
 
@@ -54,11 +60,23 @@ const int GRIP_MAX = 90;
 
 // ================= SERIAL COMMUNICATION =================
 const unsigned long SERIAL_BAUD = 115200;
-const unsigned long WATCHDOG_TIMEOUT = 1000;  // ms - increased for safety
+const unsigned long WATCHDOG_TIMEOUT = 1000;
 unsigned long lastCommandTime = 0;
 bool isMoving = false;
 
 String serialBuffer = "";
+
+// ================= ULTRASONIC SENSOR =================
+float getDistance() {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  long duration = pulseIn(echoPin, HIGH, 30000); // 30ms timeout
+  if (duration == 0) return 999.0;
+  return duration * 0.034 / 2.0;
+}
 
 // ================= FUNGSI MOTOR =================
 void setMotor(int index, int speed) {
@@ -145,12 +163,15 @@ void setup() {
   Serial.begin(SERIAL_BAUD);
   delay(500);
   
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+  pinMode(ledPin, OUTPUT);
+  
   Serial.println("\n=== ESP32 Autonomous Robot Controller ===");
   Serial.println("Serial communication ready");
   Serial.println("Waiting for commands from Raspberry Pi...\n");
   
   for (int i = 0; i < numDrivers; i++) {
-    // ESP32 Arduino Core 3.x API for PWM
     ledcAttach(rpwmPins[i], pwmFreq, pwmResolution);
     ledcAttach(lpwmPins[i], pwmFreq, pwmResolution);
     ledcWrite(rpwmPins[i], 0);
@@ -188,10 +209,22 @@ void loop() {
     }
   }
   
+  // Stream ultrasonic data every 100ms
+  if (millis() - lastUltraTime > 100) {
+    float dist = getDistance();
+    Serial.print("U:");
+    Serial.println(dist);
+    
+    if (dist < 5.0) digitalWrite(ledPin, HIGH);
+    else digitalWrite(ledPin, LOW);
+    
+    lastUltraTime = millis();
+  }
+  
   if (isMoving && (millis() - lastCommandTime > WATCHDOG_TIMEOUT)) {
     stopMotors();
     Serial.println("WARN:WATCHDOG_STOP");
   }
   
-  delay(1);  // small delay for stability
+  delay(1);
 }
