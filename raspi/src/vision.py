@@ -121,6 +121,55 @@ class VisionSystem:
         self.frame_center_y = FRAME_CENTER_Y
         print("[VISION] COLOR_RANGES hot-reloaded from config.py")
 
+    def detect_environment(self, frame: np.ndarray):
+        """
+        Detect floor color, obstacles, and pots using HSV.
+        """
+        results = {
+            "floor": None,
+            "obstacles": [],
+            "pots": []
+        }
+        
+        hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        
+        # Crop area for floor detection
+        y_min, y_max = FLOOR_DETECTION_ZONE["y_min"], FLOOR_DETECTION_ZONE["y_max"]
+        floor_roi = frame[y_min:y_max, :]
+        hsv_floor = cv2.cvtColor(floor_roi, cv2.COLOR_RGB2HSV)
+        
+        # 1. Detect Floor
+        max_area = 0
+        for color in ['red', 'yellow', 'green', 'blue']:
+            key = f"{color}_floor"
+            if key in COLOR_RANGES:
+                mask = cv2.inRange(hsv, np.array(COLOR_RANGES[key][0]), np.array(COLOR_RANGES[key][1]))
+                if color == 'red' and 'red_floor_wrap' in COLOR_RANGES:
+                    mask = cv2.bitwise_or(mask, cv2.inRange(hsv, np.array(COLOR_RANGES['red_floor_wrap'][0]), np.array(COLOR_RANGES['red_floor_wrap'][1])))
+                area = cv2.countNonZero(mask)
+                if area > FLOOR_ZONE_MIN_AREA and area > max_area:
+                    max_area = area
+                    results["floor"] = color
+
+        # 2. Detect Obstacles & Pots
+        hsv_full = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        
+        # Black obstacles
+        obs_mask = cv2.inRange(hsv, np.array(COLOR_RANGES["obstacle_black"][0]), np.array(COLOR_RANGES["obstacle_black"][1]))
+        contours, _ = cv2.findContours(obs_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            if cv2.contourArea(cnt) > OBSTACLE_MIN_AREA:
+                self.obstacles.append(cv2.boundingRect(cnt))
+        
+        # White pots
+        pot_mask = cv2.inRange(hsv, np.array(COLOR_RANGES["pot_white"][0]), np.array(COLOR_RANGES["pot_white"][1]))
+        contours, _ = cv2.findContours(pot_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            if cv2.contourArea(cnt) > POT_MIN_AREA:
+                results["pots"].append(cv2.boundingRect(cnt))
+                
+        return results
+
     def close(self):
         if self.picam:
             self.picam.stop()
